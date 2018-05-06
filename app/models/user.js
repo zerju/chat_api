@@ -17,8 +17,4 @@ const UserSchema = new Schema({
   friends: [{type: Schema.Types.ObjectId, ref: 'User'}]
 });
 
-UserSchema.statics.comparePassword = (pwd) => {
-  return bcrypt.compareSync(pwd, this.password);
-};
-
 module.exports = UserSchema;
