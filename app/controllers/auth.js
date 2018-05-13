@@ -11,9 +11,10 @@ const config = require(__base + 'app/config');
 // Register a new user
 module.exports.register = (req, res) => {
   if (!req.body.email || !req.body.username || !req.body.password) {
-    res.status(400).json({errors: ['Data for registration missing']});
-  } else if (!validators.validateEmail(req.body.email)) {
-    res.status(400).json({errors: ['Not a valid email address']});
+    return res.status(400).json({errors: ['Data for registration missing']});
+  }
+  if (!validators.validateEmail(req.body.email)) {
+    return res.status(400).json({errors: ['Not a valid email address']});
   } else {
     let errorMsg = [];
     const newUser = new db.UserModel(req.body);
@@ -50,25 +51,27 @@ module.exports.register = (req, res) => {
 
 // login existing user
 module.exports.login = (req, res) => {
+  console.log(req.body);
   db.UserModel.findOne({username: req.body.username}, (err, user) => {
+    console.log(user);
     if (user == null) {
-      return utils.sendRequestError(res, 401, ['Wrong username or password']);
+      return utils.sendRequestError(res, 403, ['Wrong username or password']);
     }
     bcrypt.compare(req.body.password, user.password, (err, correct) => {
       if (correct) {
         res.status(200).json({
           auth: true,
-          token: jwt.sign(
-              {
-                email: user.email,
-                username: user.username,
-                id: user.id,
-                statuses: user.statuses
-              },
-              config.secret, {expiresIn: 864000})
+          user: {
+            email: user.email,
+            username: user.username,
+            id: user.id,
+            statuses: user.statuses
+          },
+          token:
+              jwt.sign({userId: user.id}, config.secret, {expiresIn: 864000})
         });
       } else {
-        utils.sendRequestError(res, 401, ['Wrong username or password']);
+        utils.sendRequestError(res, 403, ['Wrong username or password']);
       }
     });
   });
