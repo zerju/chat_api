@@ -16,12 +16,14 @@ module.exports.register = (req, res) => {
   if (!validators.validateEmail(req.body.email)) {
     return res.status(400).json({errors: ['Not a valid email address']});
   } else {
+    console.log(req.body);
     let errorMsg = [];
     const newUser = new db.UserModel(req.body);
     newUser.id = uuid();
     bcrypt.hash(req.body.password, 10, (err, hash) => {
       db.UserModel.findOne({username: newUser.username}, (err1, user) => {
         db.UserModel.findOne({email: newUser.email}, (err2, userMail) => {
+          console.log(user);
           if (err1 || err2) {
             res.status(500).json({errors: 'Server error'});
           }
@@ -35,11 +37,13 @@ module.exports.register = (req, res) => {
             res.status(409).json({errors: errorMsg});
           } else {
             newUser.password = hash;
-            db.UserModel.create(newUser, (err, user) => {
-              if (err) {
+            newUser.refreshToken = uuid();
+            db.UserModel.create(newUser, (err3, user) => {
+              console.log('works?=');
+              if (err3) {
                 res.status(500).json({errors: 'Server error'});
               } else {
-                res.status(200).json({user: user});
+                res.status(200).json({message: 'User Created'});
               }
             });
           }
@@ -53,27 +57,78 @@ module.exports.register = (req, res) => {
 module.exports.login = (req, res) => {
   console.log(req.body);
   db.UserModel.findOne({username: req.body.username}, (err, user) => {
-    console.log(user);
     if (user == null) {
       return utils.sendRequestError(res, 403, ['Wrong username or password']);
     }
     bcrypt.compare(req.body.password, user.password, (err, correct) => {
       if (correct) {
-        res.status(200).json({
-          auth: true,
-          user: {
-            email: user.email,
-            username: user.username,
-            id: user.id,
-            statuses: user.statuses
-          },
-          token:
-              jwt.sign({userId: user.id}, config.secret, {expiresIn: 864000})
+        const token =
+            jwt.sign({userId: user.id}, config.secret, {expiresIn: 8640});
+        user.accessToken = token;
+        user.save((saveErr) => {
+          if (saveErr) {
+            return utils.sendRequestError(
+                res, 500, ['Something went wrong on our side']);
+          } else {
+            return res.status(200).json({
+              auth: true,
+              user: {
+                email: user.email,
+                username: user.username,
+                id: user.id,
+                statuses: user.statuses,
+                image: user.image
+              },
+              token: token,
+              refreshToken: user.refreshToken,
+              refreshTokenExp: user.refreshTokenExp
+            });
+          }
         });
+
       } else {
         utils.sendRequestError(res, 403, ['Wrong username or password']);
       }
     });
+  });
+};
+
+module.exports.newAccessToken = (req, res) => {
+  const accessToken = req.headers['authorization'];
+  console.log(accessToken);
+  const decoded = jwt.decode(accessToken);
+  jwt.verify(accessToken, config.secret, (err, decodedToken) => {
+    if (err) {
+      const oldToken = decoded;
+      db.UserModel.findOne({id: oldToken.userId})
+          .exec()
+          .then((user) => {
+            if (Date.parse(user.refreshTokenExp) > Date.now()) {
+              if (user.refreshToken === req.body.refreshToken) {
+                const token = jwt.sign(
+                    {userId: user.id}, config.secret,
+                    {expiresIn: 8640});  // 86400
+                user.accessToken = token;
+                user.save((saveErr) => {
+                  if (saveErr) {
+                    return utils.sendRequestError(
+                        res, 500, ['Something went wrong on our side']);
+                  } else {
+                    return res.status(200).json({newToken: token});
+                  }
+                });
+              } else {
+                return res.status(400).json({error: ['invalid_grant']});
+              }
+            } else {
+              return res.status(400).json({error: ['invalid_grant']});
+            }
+          })
+          .catch((err) => {
+            return res.status(400).json({error: ['invalid_grant']});
+          });
+    } else {
+    }
   });
 };
 
@@ -83,7 +138,7 @@ module.exports.logout = (req, res) => {
 
 // check if user is authenticated
 module.exports.isAuthenticated = (req, res, next) => {
-  const token = req.headers['x-access-token'];
+  const token = req.headers['authorization'];
   if (!token) {
     res.status(401).json({errors: ['Not authenticated']});
   } else {
