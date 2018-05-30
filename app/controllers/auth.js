@@ -16,7 +16,6 @@ module.exports.register = (req, res) => {
   if (!validators.validateEmail(req.body.email)) {
     return res.status(400).json({errors: ['Not a valid email address']});
   } else {
-    console.log(req.body);
     let errorMsg = [];
     const newUser = new db.UserModel(req.body);
     newUser.id = uuid();
@@ -67,8 +66,8 @@ module.exports.login = (req, res) => {
         user.accessToken = token;
         user.save((saveErr) => {
           if (saveErr) {
-            return utils.sendRequestError(
-                res, 500, ['Something went wrong on our side']);
+            return utils.sendRequestError(res, 500,
+                                          ['Something went wrong on our side']);
           } else {
             return res.status(200).json({
               auth: true,
@@ -105,9 +104,8 @@ module.exports.newAccessToken = (req, res) => {
           .then((user) => {
             if (Date.parse(user.refreshTokenExp) > Date.now()) {
               if (user.refreshToken === req.body.refreshToken) {
-                const token = jwt.sign(
-                    {userId: user.id}, config.secret,
-                    {expiresIn: 8640});  // 86400
+                const token = jwt.sign({userId: user.id}, config.secret,
+                                       {expiresIn: 8640});  // 86400
                 user.accessToken = token;
                 user.save((saveErr) => {
                   if (saveErr) {
