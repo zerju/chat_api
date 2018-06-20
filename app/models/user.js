@@ -16,14 +16,17 @@ const UserSchema = new Schema({
   },
   group: [{type: Schema.Types.ObjectId, ref: 'Group'}],
   friends: [{type: Schema.Types.ObjectId, ref: 'User'}],
-  contactRequests: [{
-    from: {type: Schema.Types.ObjectId, ref: 'User'},
-    date: {type: Date, default: Date.now},
-    responded: {type: Boolean, default: false}
-  }],
+  contactRequests: [
+    {
+      from: {type: Schema.Types.ObjectId, ref: 'User'},
+      date: {type: Date, default: Date.now},
+      responded: {type: Boolean, default: false}
+    }
+  ],
   refreshToken: {type: String, required: true},
   refreshTokenExp:
-      {type: Date, required: true, default: new Date(Date.now() + 12096e5)}
+      {type: Date, required: true, default: new Date(Date.now() + 12096e5)},
+  socketId: {type: String}
 });
 
 module.exports = UserSchema;

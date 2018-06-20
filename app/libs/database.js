@@ -20,6 +20,14 @@ module.exports.connection = dbConnection;
 const UserSchema = require(__base + 'app/models/user');
 module.exports.UserModel = dbConnection.model('User', UserSchema);
 
+const ConversationSchema = require(__base + 'app/models/conversation');
+module.exports.ConversationModel =
+    dbConnection.model('Conversation', ConversationSchema);
+
+const MessageSchema = require(__base + 'app/models/message');
+module.exports.MessageModel = dbConnection.model('Message', MessageSchema);
+
+
 module.exports.disconnect = () => {
   dbConnection.close();
 };

@@ -128,5 +128,17 @@ module.exports.getContacts = (req, res) => {
       .catch((err) => {
         return utils.sendRequestError(res, 500, ['Server error']);
       });
-  ;
+};
+
+module.exports.addSocketId = (token, socketId) => {
+  if (socketId) {
+    const decoded = jwt.decode(token);
+    const userid = decoded.userid;
+    db.UserModel.findOne({id: userid})
+        .exec()
+        .then((user) => {
+          user.socketId = socketId;
+          user.save((err) => { console.error(err); });
+        });
+  }
 }

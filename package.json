@@ -1,13 +1,14 @@
 {
   "name": "chat_api",
   "version": "1.0.0",
-  "description": "",
+  "description": "API for my chat app",
+  "repository": "https://github.com/zerju/chat_api.git",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Jure Žerak",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "bcrypt": "^2.0.1",
     "body-parser": "^1.18.2",
@@ -17,6 +18,7 @@
     "jsonwebtoken": "^8.2.1",
     "mongoose": "^5.0.17",
     "morgan": "^1.9.0",
+    "socket.io": "^2.1.1",
     "uuid": "^3.2.1"
   }
 }

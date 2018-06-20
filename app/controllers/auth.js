@@ -94,7 +94,6 @@ module.exports.login = (req, res) => {
 
 module.exports.newAccessToken = (req, res) => {
   const accessToken = req.headers['authorization'];
-  console.log(accessToken);
   const decoded = jwt.decode(accessToken);
   jwt.verify(accessToken, config.secret, (err, decodedToken) => {
     if (err) {
@@ -149,4 +148,8 @@ module.exports.isAuthenticated = (req, res, next) => {
       }
     });
   }
+};
+module.exports.areFriends = (req, res, next) => {
+  console.log(req);
+  next();
 }
