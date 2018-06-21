@@ -24,7 +24,7 @@ module.exports.register = (req, res) => {
         db.UserModel.findOne({email: newUser.email}, (err2, userMail) => {
           console.log(user);
           if (err1 || err2) {
-            res.status(500).json({errors: 'Server error'});
+            return res.status(500).json({errors: 'Server error'});
           }
           if (user != null) {
             errorMsg.push('Username already exist');
@@ -33,16 +33,16 @@ module.exports.register = (req, res) => {
             errorMsg.push('Email already exists');
           }
           if (errorMsg.length > 0) {
-            res.status(409).json({errors: errorMsg});
+            return res.status(409).json({errors: errorMsg});
           } else {
             newUser.password = hash;
             newUser.refreshToken = uuid();
             db.UserModel.create(newUser, (err3, user) => {
               console.log('works?=');
               if (err3) {
-                res.status(500).json({errors: 'Server error'});
+                return res.status(500).json({errors: 'Server error'});
               } else {
-                res.status(200).json({message: 'User Created'});
+                return res.status(200).json({message: 'User Created'});
               }
             });
           }
@@ -93,7 +93,7 @@ module.exports.login = (req, res) => {
 };
 
 module.exports.newAccessToken = (req, res) => {
-  const accessToken = req.headers['authorization'];
+  const accessToken = req.headers.authorization;
   const decoded = jwt.decode(accessToken);
   jwt.verify(accessToken, config.secret, (err, decodedToken) => {
     if (err) {
@@ -130,26 +130,42 @@ module.exports.newAccessToken = (req, res) => {
 };
 
 module.exports.logout = (req, res) => {
-  res.status(200).json({auth: false, token: null});
+  return res.status(200).json({auth: false, token: null});
 };
 
 // check if user is authenticated
 module.exports.isAuthenticated = (req, res, next) => {
-  const token = req.headers['authorization'];
+  const token = req.headers.authorization;
   if (!token) {
-    res.status(401).json({errors: ['Not authenticated']});
+    return res.status(401).json({errors: ['Not authenticated']});
   } else {
     jwt.verify(token, config.secret, (err, decoded) => {
       if (err) {
-        res.status(401).json({errors: ['Not authenticated']});
+        return res.status(401).json({errors: ['Not authenticated']});
       } else {
         req.user = decoded;
-        next();
+        return next();
       }
     });
   }
 };
 module.exports.areFriends = (req, res, next) => {
-  console.log(req);
-  next();
-}
+  const userid = req.user.userId;
+  const contactid = req.body.contactid;
+  db.UserModel.findOne({id: userid})
+      .populate('friends')
+      .exec((err, user) => {
+        if (user) {
+          for (let friend of user.friends) {
+            if (friend.id === contactid) {
+              return next();
+            }
+          }
+          return res.status(403).json({
+            message: 'You have to be a friend of the contact to send messages'
+          });
+        } else {
+          return res.status(500).json({message: 'Server error'});
+        }
+      });
+};

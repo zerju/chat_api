@@ -4,6 +4,8 @@ const express = require('express');
 const router = express.Router();
 const authController = require(__base + 'app/controllers/auth');
 const usersController = require(__base + 'app/controllers/users');
+const conversationController =
+    require(__base + 'app/controllers/conversations');
 
 router.route('/auth/login').post(authController.login);
 router.route('/auth/register').post(authController.register);
@@ -18,4 +20,12 @@ router.route('/users/contacts')
     .get(authController.isAuthenticated, usersController.getContacts);
 router.route('/user')
     .get(authController.isAuthenticated, usersController.getUser);
+router.route('/messages')
+    .get(authController.isAuthenticated, conversationController.getMessages);
+router.route('/conversations')
+    .get(authController.isAuthenticated,
+         conversationController.getConversations);
+router.route('/conversation')
+    .post(authController.isAuthenticated, authController.areFriends,
+          conversationController.createConversation);
 module.exports = router;

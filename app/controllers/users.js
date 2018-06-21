@@ -2,6 +2,7 @@
 
 const db = require(__base + 'app/libs/database');
 const utils = require(__base + 'app/libs/utils');
+const jwt = require('jsonwebtoken');
 
 module.exports.getUser = (req, res) => {
   db.UserModel.findOne({id: req.user.userId})
@@ -9,8 +10,13 @@ module.exports.getUser = (req, res) => {
                 {'_id': 0, 'username': 1, 'image': 1, 'id': 1})
       .populate('friends', {'_id': 0, 'username': 1, 'image': 1, 'statuses': 1})
       .select({'_id': 0, 'password': 0, '__v': 0, 'created': 0})
-      .exec()
-      .then((user) => { return res.status(200).json({user: user}); });
+      .exec((err, user) => {
+        if (user) {
+          return res.status(200).json({user: user});
+        } else {
+          return res.status(500).json({message: 'Server error'});
+        }
+      });
 };
 
 module.exports.getAllUsers = (req, res) => {
@@ -48,8 +54,9 @@ module.exports.sendContactRequest = (req, res) => {
                   .then((saved) => {
                     return res.status(200).json({message: 'Request sent'});
                   })
-                  .catch((err) => {return utils.sendRequestError(
-                             res, 500, ['Server error'])});
+                  .catch((err) => {
+                    return utils.sendRequestError(res, 500, ['Server error']);
+                  });
             })
             .catch((err) => {
               return utils.sendRequestError(res, 500, ['Server error']);
@@ -58,7 +65,6 @@ module.exports.sendContactRequest = (req, res) => {
       .catch((err) => {
         return utils.sendRequestError(res, 500, ['Server error']);
       });
-  ;
 };
 
 module.exports.addContact = (req, res) => {
@@ -94,23 +100,19 @@ module.exports.addContact = (req, res) => {
                           return utils.sendRequestError(res, 500,
                                                         ['User update error']);
                         });
-                    ;
                   })
                   .catch((err) => {
                     return utils.sendRequestError(res, 500,
                                                   ['Contact update error']);
                   });
-              ;
             })
             .catch((err) => {
               return utils.sendRequestError(res, 500, ['User find error']);
             });
-        ;
       })
       .catch((err) => {
         return utils.sendRequestError(res, 500, ['Contact find error']);
       });
-  ;
 };
 
 module.exports.getContacts = (req, res) => {
@@ -123,22 +125,27 @@ module.exports.getContacts = (req, res) => {
                   statuses: 1,
                   _id: 0,
                 })
-      .exec()
-      .then((user) => { res.status(200).json({friends: user.friends}); })
-      .catch((err) => {
-        return utils.sendRequestError(res, 500, ['Server error']);
+      .exec((err, user) => {
+        if (user) {
+          return res.status(200).json({friends: user.friends});
+        } else {
+          return utils.sendRequestError(res, 500, ['Server error']);
+        }
       });
 };
 
-module.exports.addSocketId = (token, socketId) => {
+module.exports.addSocketId = (decoded, socketId) => {
   if (socketId) {
-    const decoded = jwt.decode(token);
-    const userid = decoded.userid;
-    db.UserModel.findOne({id: userid})
-        .exec()
-        .then((user) => {
-          user.socketId = socketId;
-          user.save((err) => { console.error(err); });
+    const userid = decoded.userId;
+    db.UserModel.findOne({id: userid}, (err, user) => {
+      if (user) {
+        user.socketId = socketId;
+        user.save((userError) => {
+          if (userError) console.error(userError);
         });
+      } else {
+        console.error(err);
+      }
+    });
   }
-}
+};

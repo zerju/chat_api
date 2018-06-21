@@ -2,6 +2,7 @@
 
 const db = require(__base + 'app/libs/database');
 const uuid = require('uuid/v4');
+const jwt = require('jsonwebtoken');
 
 module.exports.createConversation = (req, res) => {
   const userid = req.body.userid;
@@ -19,14 +20,14 @@ module.exports.createConversation = (req, res) => {
               db.ConversationModel.create(conversation, (createErr, conv) => {
                 if (conv) {
                   console.log(conv);
-                  return res.status(200).json({message: 'Conv created'});
+                  return res.status(200).json({conversation: conv});
                 } else {
                   console.error(createErr);
                   return res.status(500).json({message: 'error'});
                 }
               });
             } else {
-              return res.status(200);
+              return res.status(200).json({conversation: foundConv});
             }
           });
     } else {
@@ -40,20 +41,19 @@ module.exports.addMessage = (token, message, conversation) => {
   const decoded = jwt.decode(token);
   const userid = decoded.userid;
   let participantSockets;
-
   db.ConversationModel.findOne({id: conversation})
       .populate('participants')
       .exec((err, conv) => {
         if (conv) {
           const conversationId = conv._id;
-          const message = {
+          const msg = {
             id: uuid(),
             sender: userid,
             conversation: conversationId,
             content: message
           };
-          db.MessageModel.create(messsage, (createErr, message) => {
-            if (message) {
+          db.MessageModel.create(msg, (createErr, createdMsg) => {
+            if (createdMsg) {
               participantSockets = conv.participants.socketId;
             } else {
               console.error(createErr);
