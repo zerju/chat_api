@@ -16,7 +16,9 @@ const routes = require(__base + 'app/routes');
 app.use('/', routes);
 
 // handle 404 errors
-app.use('*', (req, res) => { res.status(404).json({message: 'Wrong path'}); });
+app.use('*', (req, res) => {
+  res.status(404).json({message: 'Wrong path'});
+});
 
 const port = process.env.PORT || 3000;
 const server = require('http').createServer(app);

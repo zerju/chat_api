@@ -5,14 +5,15 @@ const uuid = require('uuid/v4');
 const jwt = require('jsonwebtoken');
 
 module.exports.createConversation = (req, res) => {
-  const userid = req.body.userid;
-  const contactid = req.body.contactid;
+  const participantIds = req.body.participantIds;
+  participantIds.push(req.user.userId);
+  const mapped = participantIds.map((x) => {
+    return {id: x};
+  });
 
-  db.UserModel.find({$or: [{id: userid}, {id: contactid}]}, (err, users) => {
+  db.UserModel.find({$or: mapped}, (err, users) => {
     if (users) {
-      const uid1 = users[0]._id;
-      const uid2 = users[1]._id;
-      const participants = [uid1, uid2];
+      const participants = users.map((x) => x._id);
       db.ConversationModel.find(
           {participants: participants}, (errConv, foundConv) => {
             if (foundConv && foundConv.length === 0) {
@@ -37,47 +38,56 @@ module.exports.createConversation = (req, res) => {
   });
 };
 
-module.exports.addMessage = (token, message, conversation) => {
+module.exports.addMessage = (token, message, conversation, callback) => {
   const decoded = jwt.decode(token);
-  const userid = decoded.userid;
-  let participantSockets;
-  db.ConversationModel.findOne({id: conversation})
-      .populate('participants')
-      .exec((err, conv) => {
-        if (conv) {
-          const conversationId = conv._id;
-          const msg = {
-            id: uuid(),
-            sender: userid,
-            conversation: conversationId,
-            content: message
-          };
-          db.MessageModel.create(msg, (createErr, createdMsg) => {
-            if (createdMsg) {
-              participantSockets = conv.participants.socketId;
-            } else {
-              console.error(createErr);
-            }
-          });
-        } else {
-          console.error(err);
-        }
-      });
-  return participantSockets;
+  const userid = decoded.userId;
+  let participantSockets = [];
+  db.UserModel.findOne({id: userid}, (errUser, user) => {
+    db.ConversationModel.findOne({id: conversation})
+        .populate('participants')
+        .exec((err, conv) => {
+          if (conv) {
+            const conversationId = conv._id;
+            const msg = {
+              id: uuid(),
+              sender: user._id,
+              conversation: conversationId,
+              content: message
+            };
+            db.MessageModel.create(msg, (createErr, createdMsg) => {
+              if (createdMsg) {
+                for (let part of conv.participants) {
+                  if (part.id !== userid) {
+                    participantSockets.push(part.socketId);
+                  }
+                }
+                callback(participantSockets);
+              } else {
+                console.error(createErr);
+              }
+            });
+          } else {
+            console.error(err);
+          }
+        });
+  });
 };
 
 module.exports.getMessages = (req, res) => {
   const convId = req.body.conversation;
-
   db.ConversationModel.findOne({id: convId}, (err, conv) => {
     if (conv) {
-      db.MessageModel.find({conversation: conv._id}, (findErr, msgs) => {
-        if (msgs) {
-          return res.status(200).json({messages: msgs});
-        } else {
-          return res.status(500).json({message: 'not found'});
-        }
-      });
+      db.MessageModel.find({conversation: conv._id})
+          .select({_id: 0, conversation: 0})
+          .populate(
+              'sender', {_id: 0, id: 1, username: 1, image: 1, statuses: 1})
+          .exec((findErr, msgs) => {
+            if (msgs) {
+              return res.status(200).json({messages: msgs});
+            } else {
+              return res.status(500).json({message: 'not found'});
+            }
+          });
     } else {
       console.error(err);
       return res.status(500).json({message: 'error'});

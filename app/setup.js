@@ -12,6 +12,7 @@ const config = require(__base + 'app/config');
 // controllers
 const usersController = require(__base + 'app/controllers/users');
 const authController = require(__base + 'app/controllers/auth');
+const convController = require(__base + 'app/controllers/conversations');
 
 module.exports.configureExpress = (app) => {
   app.use(cors());
@@ -24,26 +25,39 @@ module.exports.configureExpress = (app) => {
 };
 
 module.exports.configureSockets = (server) => {
-  const io = require('socket.io')(server);
+  const io =
+      require('socket.io')(server, {transports: ['websocket', 'xhr-polling']});
   io.use((socket, next) => {
+      console.log('socket start');
       if (socket.handshake.query && socket.handshake.query.token) {
-        jwt.verify(socket.handshake.query.token, config.secret,
-                   (err, decoded) => {
-                     if (err) return next(new Error('Authentication error'));
-                     socket.decoded = decoded;
-                     next();
-                   });
+        jwt.verify(
+            socket.handshake.query.token, config.secret, (err, decoded) => {
+              if (err) return next(new Error('Authentication error'));
+              socket.decoded = decoded;
+              console.log('decoded');
+              next();
+            });
       } else {
+        console.log('error');
         next(new Error('Authentication error'));
       }
-    })
-      .on('connection', (socket) => {
-        console.log('Socket connection established');
-        socket.on('disconnect', () => { console.log('user disconnected'); });
-        usersController.addSocketId(socket.decoded, socket.id);
+    }).on('connection', (socket) => {
+    console.log('Socket connection established');
+    socket.on('disconnect', () => {
+      console.log('user disconnected');
+    });
+    usersController.addSocketId(socket.decoded, socket.id);
 
-        // sending to individual socketid (private message)
-        socket.on('message', (msg) => { console.log(msg); });
-        // socket.to('id').emit('hey', 'I just met you');
-      });
+    socket.on('message', (msg) => {
+      const decoded = jwt.decode(msg.token);
+      const userId = decoded.userId;
+      convController.addMessage(
+          msg.token, msg.message, msg.conversationId, function(socketIds) {
+            for (let id of socketIds) {
+              // sending to individual socketid (private message)
+              socket.to(id).emit('message', msg.message);
+            }
+          });
+    });
+  });
 };

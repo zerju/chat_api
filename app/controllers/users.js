@@ -6,9 +6,12 @@ const jwt = require('jsonwebtoken');
 
 module.exports.getUser = (req, res) => {
   db.UserModel.findOne({id: req.user.userId})
-      .populate('contactRequests.from',
-                {'_id': 0, 'username': 1, 'image': 1, 'id': 1})
-      .populate('friends', {'_id': 0, 'username': 1, 'image': 1, 'statuses': 1})
+      .populate(
+          'contactRequests.from',
+          {'_id': 0, 'username': 1, 'image': 1, 'id': 1})
+      .populate(
+          'friends',
+          {'_id': 0, 'id': 1, 'username': 1, 'image': 1, 'statuses': 1})
       .select({'_id': 0, 'password': 0, '__v': 0, 'created': 0})
       .exec((err, user) => {
         if (user) {
@@ -47,9 +50,10 @@ module.exports.sendContactRequest = (req, res) => {
         db.UserModel.findOne({id: userid})
             .exec()
             .then((user) => {
-              db.UserModel.update(
-                              {_id: contact._id},
-                              {'$push': {contactRequests: {from: user._id}}})
+              db.UserModel
+                  .update(
+                      {_id: contact._id},
+                      {'$push': {contactRequests: {from: user._id}}})
                   .exec()
                   .then((saved) => {
                     return res.status(200).json({message: 'Request sent'});
@@ -86,24 +90,26 @@ module.exports.addContact = (req, res) => {
               if (!response.response) {
                 return res.status(200).json({message: 'User denied'});
               }
-              db.UserModel.update({_id: contact._id},
-                                  {'$push': {'friends': user._id}})
+              db.UserModel
+                  .update({_id: contact._id}, {'$push': {'friends': user._id}})
                   .exec()
                   .then((suc) => {
-                    db.UserModel.update({_id: user._id},
-                                        {'$push': {'friends': contact._id}})
+                    db.UserModel
+                        .update(
+                            {_id: user._id},
+                            {'$push': {'friends': contact._id}})
                         .exec()
                         .then((suc2) => {
                           return res.status(200).json({message: 'User added'});
                         })
                         .catch((err) => {
-                          return utils.sendRequestError(res, 500,
-                                                        ['User update error']);
+                          return utils.sendRequestError(
+                              res, 500, ['User update error']);
                         });
                   })
                   .catch((err) => {
-                    return utils.sendRequestError(res, 500,
-                                                  ['Contact update error']);
+                    return utils.sendRequestError(
+                        res, 500, ['Contact update error']);
                   });
             })
             .catch((err) => {
@@ -118,13 +124,13 @@ module.exports.addContact = (req, res) => {
 module.exports.getContacts = (req, res) => {
   const userid = req.user.userId;
   db.UserModel.findOne({id: userid})
-      .populate('friends',
-                {
-                  username: 1,
-                  image: 1,
-                  statuses: 1,
-                  _id: 0,
-                })
+      .populate('friends', {
+        id: 1,
+        username: 1,
+        image: 1,
+        statuses: 1,
+        _id: 0,
+      })
       .exec((err, user) => {
         if (user) {
           return res.status(200).json({friends: user.friends});

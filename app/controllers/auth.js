@@ -66,8 +66,8 @@ module.exports.login = (req, res) => {
         user.accessToken = token;
         user.save((saveErr) => {
           if (saveErr) {
-            return utils.sendRequestError(res, 500,
-                                          ['Something went wrong on our side']);
+            return utils.sendRequestError(
+                res, 500, ['Something went wrong on our side']);
           } else {
             return res.status(200).json({
               auth: true,
@@ -103,8 +103,9 @@ module.exports.newAccessToken = (req, res) => {
           .then((user) => {
             if (Date.parse(user.refreshTokenExp) > Date.now()) {
               if (user.refreshToken === req.body.refreshToken) {
-                const token = jwt.sign({userId: user.id}, config.secret,
-                                       {expiresIn: 8640});  // 86400
+                const token = jwt.sign(
+                    {userId: user.id}, config.secret,
+                    {expiresIn: 8640});  // 86400
                 user.accessToken = token;
                 user.save((saveErr) => {
                   if (saveErr) {
@@ -151,21 +152,22 @@ module.exports.isAuthenticated = (req, res, next) => {
 };
 module.exports.areFriends = (req, res, next) => {
   const userid = req.user.userId;
-  const contactid = req.body.contactid;
-  db.UserModel.findOne({id: userid})
-      .populate('friends')
-      .exec((err, user) => {
-        if (user) {
-          for (let friend of user.friends) {
-            if (friend.id === contactid) {
-              return next();
-            }
+  const participantIds = req.body.participantIds;
+  console.log(userid, participantIds);
+  db.UserModel.findOne({id: userid}).populate('friends').exec((err, user) => {
+    if (user) {
+      console.log(user.friends[0].id);
+      for (let friend of user.friends) {
+        for (let part of participantIds) {
+          if (friend.id === part) {
+            return next();
           }
-          return res.status(403).json({
-            message: 'You have to be a friend of the contact to send messages'
-          });
-        } else {
-          return res.status(500).json({message: 'Server error'});
         }
-      });
+      }
+      return res.status(403).json(
+          {message: 'You have to be a friend of the contact to send messages'});
+    } else {
+      return res.status(500).json({message: 'Server error'});
+    }
+  });
 };
