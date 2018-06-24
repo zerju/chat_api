@@ -3,6 +3,7 @@
 const db = require(__base + 'app/libs/database');
 const utils = require(__base + 'app/libs/utils');
 const jwt = require('jsonwebtoken');
+const ObjectId = require('mongoose').Types.ObjectId;
 
 module.exports.getUser = (req, res) => {
   db.UserModel.findOne({id: req.user.userId})
@@ -51,9 +52,9 @@ module.exports.sendContactRequest = (req, res) => {
             .exec()
             .then((user) => {
               db.UserModel
-                  .update(
-                      {_id: contact._id},
-                      {'$push': {contactRequests: {from: user._id}}})
+                  .update({_id: new ObjectId(contact._id)}, {
+                    '$push': {contactRequests: {from: new ObjectId(user._id)}}
+                  })
                   .exec()
                   .then((saved) => {
                     return res.status(200).json({message: 'Request sent'});
@@ -84,20 +85,22 @@ module.exports.addContact = (req, res) => {
             .then((user) => {
               const requests = user.contactRequests.slice();
               const index = requests.map((x) => x.from.toString())
-                                .indexOf(contact._id.toString());
+                                .indexOf(new ObjectId(contact._id.toString()));
               user.contactRequests[index].responded = true;
               user.save();
               if (!response.response) {
                 return res.status(200).json({message: 'User denied'});
               }
               db.UserModel
-                  .update({_id: contact._id}, {'$push': {'friends': user._id}})
+                  .update(
+                      {_id: new ObjectId(contact._id)},
+                      {'$push': {'friends': new ObjectId(user._id)}})
                   .exec()
                   .then((suc) => {
                     db.UserModel
                         .update(
-                            {_id: user._id},
-                            {'$push': {'friends': contact._id}})
+                            {_id: new ObjectId(user._id)},
+                            {'$push': {'friends': new ObjectId(contact._id)}})
                         .exec()
                         .then((suc2) => {
                           return res.status(200).json({message: 'User added'});

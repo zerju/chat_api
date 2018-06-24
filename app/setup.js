@@ -52,10 +52,14 @@ module.exports.configureSockets = (server) => {
       const decoded = jwt.decode(msg.token);
       const userId = decoded.userId;
       convController.addMessage(
-          msg.token, msg.message, msg.conversationId, function(socketIds) {
+          msg.token, msg.message, msg.conversationId,
+          function(socketIds, message) {
+            console.log(socketIds);
+            console.log(message);
             for (let id of socketIds) {
               // sending to individual socketid (private message)
-              socket.to(id).emit('message', msg.message);
+              console.log(id);
+              socket.to(id).emit('message', message);
             }
           });
     });

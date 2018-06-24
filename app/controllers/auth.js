@@ -64,6 +64,8 @@ module.exports.login = (req, res) => {
         const token =
             jwt.sign({userId: user.id}, config.secret, {expiresIn: 8640});
         user.accessToken = token;
+        user.refreshToken = uuid();
+        user.refreshTokenExp = new Date(Date.now() + 12096e5);
         user.save((saveErr) => {
           if (saveErr) {
             return utils.sendRequestError(
@@ -105,7 +107,7 @@ module.exports.newAccessToken = (req, res) => {
               if (user.refreshToken === req.body.refreshToken) {
                 const token = jwt.sign(
                     {userId: user.id}, config.secret,
-                    {expiresIn: 8640});  // 86400
+                    {expiresIn: 86400});  // 86400
                 user.accessToken = token;
                 user.save((saveErr) => {
                   if (saveErr) {
@@ -153,10 +155,8 @@ module.exports.isAuthenticated = (req, res, next) => {
 module.exports.areFriends = (req, res, next) => {
   const userid = req.user.userId;
   const participantIds = req.body.participantIds;
-  console.log(userid, participantIds);
   db.UserModel.findOne({id: userid}).populate('friends').exec((err, user) => {
     if (user) {
-      console.log(user.friends[0].id);
       for (let friend of user.friends) {
         for (let part of participantIds) {
           if (friend.id === part) {
