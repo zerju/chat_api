@@ -74,6 +74,7 @@ module.exports.sendContactRequest = (req, res) => {
 
 module.exports.addContact = (req, res) => {
   const userid = req.user.userId;
+  console.log(userid);
   const response = req.body.response;
   const contactid = req.body.response.contactid;
 
@@ -84,23 +85,26 @@ module.exports.addContact = (req, res) => {
             .exec()
             .then((user) => {
               const requests = user.contactRequests.slice();
+              console.log(user.contactRequests[0].from, user._id);
               const index = requests.map((x) => x.from.toString())
-                                .indexOf(new ObjectId(contact._id.toString()));
+                                .indexOf(contact._id.toString());
+                                console.log(index);
               user.contactRequests[index].responded = true;
               user.save();
+              console.log(user);
               if (!response.response) {
                 return res.status(200).json({message: 'User denied'});
               }
               db.UserModel
                   .update(
-                      {_id: new ObjectId(contact._id)},
-                      {'$push': {'friends': new ObjectId(user._id)}})
+                      {_id: new ObjectId(user._id)},
+                      {'$push': {'friends': new ObjectId(contact._id)}})
                   .exec()
                   .then((suc) => {
                     db.UserModel
                         .update(
-                            {_id: new ObjectId(user._id)},
-                            {'$push': {'friends': new ObjectId(contact._id)}})
+                            {_id: new ObjectId(contact._id)},
+                            {'$push': {'friends': new ObjectId(user._id)}})
                         .exec()
                         .then((suc2) => {
                           return res.status(200).json({message: 'User added'});
@@ -115,8 +119,8 @@ module.exports.addContact = (req, res) => {
                         res, 500, ['Contact update error']);
                   });
             })
-            .catch((err) => {
-              return utils.sendRequestError(res, 500, ['User find error']);
+            .catch((err2) => {
+              return utils.sendRequestError(res, 500, [err2]);
             });
       })
       .catch((err) => {
